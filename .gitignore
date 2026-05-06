@@ -1,0 +1,9 @@
+﻿.env
+.env.local
+.env.production
+.next/
+node_modules/
+.data/
+local_db.json
+*.log
+backend/node_modules/
