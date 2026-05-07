@@ -218,6 +218,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
 
   // Column definitions
   const columns = entityConfig.fields.filter(f => visibleColumns.has(f.name));
+  const safeRecords = (records ?? []).filter(Boolean);
 
   return (
     <div className="flex flex-col h-full bg-base overflow-hidden relative">
@@ -299,8 +300,8 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
                      </tr>
                  </thead>
                  <tbody className="text-[13px]">
-                     {records.map(row => (
-                         <tr key={row.id} className="group hover:bg-subtle border-t border-border-default transition-colors">
+                     {safeRecords.map((row, index) => (
+                         <tr key={row?.id ?? row?._id ?? index} className="group hover:bg-subtle border-t border-border-default transition-colors">
                              {columns.map(col => (
                                  <td key={col.name} className="px-4 py-2.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
                                      {renderCell(col, row[col.name])}
@@ -308,7 +309,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
                              ))}
                              <td className="px-4 py-2.5 text-right opacity-0 group-hover:opacity-100 transition-opacity">
                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground mr-1 hover:text-accent"><Edit2 className="w-4 h-4" /></Button>
-                                 <Button variant="ghost" size="icon" onClick={() => handleDelete(row.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button>
+                                 <Button variant="ghost" size="icon" onClick={() => handleDelete(row?.id ?? row?._id ?? '')} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button>
                              </td>
                          </tr>
                      ))}
