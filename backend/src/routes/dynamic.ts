@@ -16,7 +16,7 @@ router.get("/:appId/:entity", async (req: Request, res: Response, next: NextFunc
     const config = await AppRegistry.get(appId);
     const entityConfig = config?.entities.find(e => e.name === entity);
     const searchableFields = entityConfig?.fields
-      ?.filter(f => !f.hidden && (f.type === "text" || f.type === "email" || f.type === "string"))
+      ?.filter(f => !f.hidden && (f.type === "text" || f.type === "email" || f.type === "textarea"))
       .map(f => f.name) || [];
 
     // Get from localDb
