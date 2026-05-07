@@ -217,7 +217,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
   }
 
   // Column definitions
-  const columns = entityConfig.fields.filter(f => visibleColumns.has(f.name));
+  const columns = entityConfig?.fields?.filter(f => visibleColumns.has(f.name)) ?? [];
   const safeRecords = (records ?? []).filter(Boolean);
 
   return (
@@ -270,11 +270,11 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
 
        {/* Table Area */}
        <div className="flex-1 overflow-auto border border-border-default bg-surface rounded-[10px] m-2 mt-0">
-          {loading && records.length === 0 ? (
+          {loading && (!records || records.length === 0) ? (
              <div className="w-full h-full flex flex-col p-4 animate-pulse">
                 {[...Array(5)].map((_, i) => <div key={i} className="w-full h-12 bg-elevated rounded mb-2" />)}
              </div>
-          ) : records.length === 0 ? (
+          ) : (!records || records.length === 0) ? (
              <div className="flex flex-col items-center justify-center p-16 text-text-tertiary">
                  <FileJson2 className="w-16 h-16 opacity-30 mb-4" />
                  <p className="text-[15px] font-medium text-text-secondary mb-1">No {entityConfig.label} records yet</p>
@@ -300,19 +300,25 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
                      </tr>
                  </thead>
                  <tbody className="text-[13px]">
-                     {safeRecords.map((row, index) => (
+                     {safeRecords.map((row, index) => {
+                       if (!row) return null;
+                       return (
                          <tr key={row?.id ?? row?._id ?? index} className="group hover:bg-subtle border-t border-border-default transition-colors">
-                             {columns.map(col => (
-                                 <td key={col.name} className="px-4 py-2.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
-                                     {renderCell(col, row[col.name])}
+                             {columns?.map(col => {
+                               if (!col) return null;
+                               return (
+                                 <td key={col?.name ?? index} className="px-4 py-2.5 whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">
+                                     {renderCell(col, row?.[col?.name])}
                                  </td>
-                             ))}
+                               );
+                             })}
                              <td className="px-4 py-2.5 text-right opacity-0 group-hover:opacity-100 transition-opacity">
                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground mr-1 hover:text-accent"><Edit2 className="w-4 h-4" /></Button>
                                  <Button variant="ghost" size="icon" onClick={() => handleDelete(row?.id ?? row?._id ?? '')} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button>
                              </td>
                          </tr>
-                     ))}
+                       );
+                     })}
                  </tbody>
              </table>
           )}
