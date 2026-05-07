@@ -77,17 +77,25 @@ export function DynamicForm({ view, page, config }: { view: ViewConfig; page?: P
         ? `/dynamic/${config.app.id}/${entityConfig.name}`
         : `/forms/${config.app.id}/${page?.slug || view.id}`;
 
-      await apiClient.post(endpoint, entityConfig ? formData : { data: formData });
+      console.log(`[DynamicForm] Submitting to ${endpoint}`, formData);
+      
+      const res = await apiClient.post(endpoint, entityConfig ? formData : { data: formData });
+      console.log(`[DynamicForm] Response:`, res.data);
+      
       if (entityConfig) {
+        console.log(`[DynamicForm] Invalidating query cache for records`);
         await queryClient.invalidateQueries({ queryKey: ["records", config.app.id, entityConfig.name] });
+        // Force a refetch immediately
+        await queryClient.refetchQueries({ queryKey: ["records", config.app.id, entityConfig.name] });
       }
+      
       toast.success(t("success") || "Record created successfully");
       setFormData({});
       setSubmitted(true);
       setTimeout(() => setSubmitted(false), 3000);
     } catch (e: any) {
-      console.error(e);
-      toast.error(t("error") || "Failed to submit form");
+      console.error(`[DynamicForm] Error:`, e);
+      toast.error(t("error") || (e.response?.data?.message || "Failed to submit form"));
     } finally {
       setLoading(false);
     }

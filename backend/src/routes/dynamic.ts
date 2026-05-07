@@ -12,6 +12,13 @@ router.get("/:appId/:entity", async (req: Request, res: Response, next: NextFunc
     const limit = parseInt(req.query.limit as string) || 20;
     const search = (req.query.search as string) || "";
 
+    // Get config to determine searchable fields
+    const config = await AppRegistry.get(appId);
+    const entityConfig = config?.entities.find(e => e.name === entity);
+    const searchableFields = entityConfig?.fields
+      ?.filter(f => !f.hidden && (f.type === "text" || f.type === "email" || f.type === "string"))
+      .map(f => f.name) || [];
+
     // Get from localDb
     const { records, total } = await localDb.fetchDynamicRecords(
       appId,
@@ -23,14 +30,16 @@ router.get("/:appId/:entity", async (req: Request, res: Response, next: NextFunc
         sort: req.query.sort as string | undefined,
         order: req.query.order as string | undefined,
       },
-      []
+      searchableFields
     );
 
     const totalPages = Math.ceil(total / limit);
 
+    console.log(`[GET /dynamic] appId=${appId}, entity=${entity}, page=${page}, limit=${limit}, total=${total}, records=${records?.length || 0}`);
+
     return res.json({
       success: true,
-      data: records,
+      data: records || [],
       total,
       totalPages,
       page,
@@ -69,8 +78,12 @@ router.post("/:appId/:entity", async (req: Request, res: Response, next: NextFun
       updated_at: new Date().toISOString(),
     };
 
+    console.log(`[POST /dynamic] appId=${appId}, entity=${entity}, recordId=${record.id}, body=`, JSON.stringify(req.body));
+
     // Save to localDb (already working)
     const saved = await localDb.saveDynamicRecord(appId, entity, record, entityConfig.fields);
+    
+    console.log(`[POST /dynamic] Successfully saved record:`, JSON.stringify(saved));
 
     return res.status(201).json({ 
       success: true, 
