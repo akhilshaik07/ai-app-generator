@@ -29,7 +29,9 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${backendUrl}/api/:path*`,
+        destination: process.env.NODE_ENV === 'production'
+          ? 'https://YOUR-RAILWAY-URL.up.railway.app/api/:path*'
+          : 'http://localhost:4000/api/:path*',
       },
     ];
   },
