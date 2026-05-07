@@ -1,10 +1,12 @@
 import { Router, Request, Response } from "express";
 import { requireAuth } from "../middleware/auth";
+import {
+  saveUserActivity,
+  getUserActivity,
+  clearUserActivity,
+} from "../services/user-activity";
 
 const router = Router();
-
-// In-memory storage for demo (use Supabase in production)
-const userActivities = new Map<string, any>();
 
 /**
  * Save user activity
@@ -16,16 +18,34 @@ router.post("/activity/save", requireAuth, async (req: Request, res: Response) =
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const activity = {
-      userId,
-      ...req.body,
-      timestamp: new Date().toISOString(),
-    };
+    const { appId, currentPageSlug, rawConfig, parsedConfig, editorPanelWidth, sidebarCollapsed } = req.body;
 
-    // Store in memory (for production, use Supabase or database)
-    userActivities.set(userId, activity);
+    const activity = await saveUserActivity(userId, {
+      lastAppId: appId || null,
+      lastPage: currentPageSlug || null,
+      editorState: {
+        rawConfig,
+        parsedConfig,
+        editorPanelWidth,
+        sidebarCollapsed,
+      },
+    });
 
-    res.json({ success: true, activity });
+    // Return in the same shape the frontend expects
+    res.json({
+      success: true,
+      activity: {
+        userId,
+        appId: activity?.last_app_id || null,
+        currentPageSlug: activity?.last_page || null,
+        rawConfig: activity?.editor_state?.rawConfig || "",
+        parsedConfig: activity?.editor_state?.parsedConfig || {},
+        editorPanelWidth: activity?.editor_state?.editorPanelWidth ?? 40,
+        sidebarCollapsed: activity?.editor_state?.sidebarCollapsed ?? false,
+        timestamp: activity?.updated_at || new Date().toISOString(),
+        active: true,
+      },
+    });
   } catch (error) {
     console.error("Error saving activity:", error);
     res.status(500).json({ error: "Failed to save activity" });
@@ -42,13 +62,24 @@ router.get("/activity/last-activity", requireAuth, async (req: Request, res: Res
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const activity = userActivities.get(userId);
-    
+    const activity = await getUserActivity(userId);
+
     if (!activity) {
       return res.status(200).json(null);
     }
 
-    res.json(activity);
+    // Return in the shape the frontend expects
+    res.json({
+      userId: activity.user_id,
+      appId: activity.last_app_id,
+      currentPageSlug: activity.last_page,
+      rawConfig: activity.editor_state?.rawConfig || "",
+      parsedConfig: activity.editor_state?.parsedConfig || {},
+      editorPanelWidth: activity.editor_state?.editorPanelWidth ?? 40,
+      sidebarCollapsed: activity.editor_state?.sidebarCollapsed ?? false,
+      timestamp: activity.updated_at,
+      active: true,
+    });
   } catch (error) {
     console.error("Error loading activity:", error);
     res.status(500).json({ error: "Failed to load activity" });
@@ -65,14 +96,25 @@ router.get("/activity/history", requireAuth, async (req: Request, res: Response)
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    const limit = parseInt(req.query.limit as string) || 10;
-    const activity = userActivities.get(userId);
+    const activity = await getUserActivity(userId);
 
     if (!activity) {
       return res.json([]);
     }
 
-    res.json([activity]);
+    res.json([
+      {
+        userId: activity.user_id,
+        appId: activity.last_app_id,
+        currentPageSlug: activity.last_page,
+        rawConfig: activity.editor_state?.rawConfig || "",
+        parsedConfig: activity.editor_state?.parsedConfig || {},
+        editorPanelWidth: activity.editor_state?.editorPanelWidth ?? 40,
+        sidebarCollapsed: activity.editor_state?.sidebarCollapsed ?? false,
+        timestamp: activity.updated_at,
+        active: true,
+      },
+    ]);
   } catch (error) {
     console.error("Error fetching activity history:", error);
     res.status(500).json({ error: "Failed to fetch activity history" });
@@ -89,7 +131,7 @@ router.post("/activity/clear", requireAuth, async (req: Request, res: Response) 
       return res.status(401).json({ error: "Not authenticated" });
     }
 
-    userActivities.delete(userId);
+    await clearUserActivity(userId);
     res.json({ success: true });
   } catch (error) {
     console.error("Error clearing activity:", error);

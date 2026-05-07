@@ -1,9 +1,9 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { AppRegistry } from "../core/app-registry";
-import { localDb } from "../services/db";
 import multer from "multer";
 import Papa from "papaparse";
-import { requireAuth, optionalAuth } from "../middleware/auth";
+import { requireAuth } from "../middleware/auth";
+import { batchCreateDynamicRecords } from "../services/dynamic-records";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
@@ -11,7 +11,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 
 // Quick in-memory store for CSV sessions
 const csvSessions = new Map<string, { rows: any[], expiresAt: number }>();
 
-router.post("/upload/:appId/:entity", optionalAuth, upload.single("file"), async (req: Request, res: Response, next: NextFunction) => {
+router.post("/upload/:appId/:entity", requireAuth, upload.single("file"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
@@ -47,7 +47,7 @@ router.post("/upload/:appId/:entity", optionalAuth, upload.single("file"), async
   }
 });
 
-router.post("/import/:appId/:entity", optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/import/:appId/:entity", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { appId, entity } = req.params as { appId: string, entity: string };
         const { sessionId, columnMapping } = req.body; // array of { csvColumn, entityField }
@@ -63,7 +63,6 @@ router.post("/import/:appId/:entity", optionalAuth, async (req: Request, res: Re
         const entityConfig = config.entities.find(e => e.name === entity);
         if (!entityConfig) return res.status(404).json({ error: "Not Found", message: `Entity ${entity} not found` });
 
-        const tableName = `app_${appId.replace(/-/g, '_')}_${entity}`;
         const mappingObj = columnMapping.reduce((acc: any, curr: any) => {
             acc[curr.csvColumn] = curr.entityField;
             return acc;
@@ -75,9 +74,7 @@ router.post("/import/:appId/:entity", optionalAuth, async (req: Request, res: Re
         const now = new Date().toISOString();
 
         session.rows.forEach((row, rowIndex) => {
-            const transformedRow: any = {
-               id: crypto.randomUUID()
-            };
+            const transformedRow: any = {};
             if (entityConfig.timestamps !== false) {
                transformedRow.created_at = now;
                transformedRow.updated_at = now;
@@ -116,10 +113,10 @@ router.post("/import/:appId/:entity", optionalAuth, async (req: Request, res: Re
             }
         });
 
+        const userId = (req as any).user.id;
+
         if (validRows.length > 0) {
-            const records = await localDb.getRecords(tableName);
-            records.push(...validRows);
-            await localDb.setRecords(tableName, records);
+            await batchCreateDynamicRecords(appId, entity, validRows, userId);
         }
 
         // Cleanup

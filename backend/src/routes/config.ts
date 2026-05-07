@@ -27,30 +27,9 @@ router.post("/apply", optionalAuth, async (req: Request, res: Response, next: Ne
 
     await AppRegistry.set(appId, result.normalized, userId);
 
-    // Create dynamic Supabase tables for table entities/pages (non-fatal per table)
-    const createdTables: string[] = [];
-    const tablePages = (result.normalized.pages || []).filter((p: any) => p?.type === "table");
-    for (const page of tablePages) {
-      const entityName = page.entity || page.name || page.slug;
-      if (!entityName || !Array.isArray(page.fields) || page.fields.length === 0) continue;
-      try {
-        await localDb.ensureEntityTable(appId, entityName, page.fields as any[]);
-        createdTables.push(localDb.getDynamicTableName(appId, entityName));
-      } catch (err) {
-        console.warn(`Could not create table for ${entityName}:`, err);
-      }
-    }
-
-    // Also ensure configured entities are materialized even without explicit table page
-    for (const entity of result.normalized.entities || []) {
-      if (!entity?.name || !Array.isArray(entity.fields) || entity.fields.length === 0) continue;
-      try {
-        await localDb.ensureEntityTable(appId, entity.name, entity.fields as any[]);
-        createdTables.push(localDb.getDynamicTableName(appId, entity.name));
-      } catch (err) {
-        console.warn(`Could not create entity table for ${entity.name}:`, err);
-      }
-    }
+    // Dynamic records now use a single `dynamic_records` table in Supabase.
+    // No per-entity table creation is needed.
+    const createdTables: string[] = ["dynamic_records"];
 
     res.status(200).json({
       appId,

@@ -1,12 +1,11 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { AppRegistry } from "../core/app-registry";
-import { localDb } from "../services/db";
+import { requireAuth } from "../middleware/auth";
+import { createDynamicRecord } from "../services/dynamic-records";
 
 const router = Router();
 
-const getFormStorageKey = (appId: string, formSlug: string) => `form_${appId.replace(/-/g, "_")}_${formSlug.replace(/-/g, "_")}`;
-
-router.post("/:appId/:formSlug", async (req: Request, res: Response, next: NextFunction) => {
+router.post("/:appId/:formSlug", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { appId, formSlug } = req.params as { appId: string; formSlug: string };
     const { data } = req.body || {};
@@ -23,9 +22,7 @@ router.post("/:appId/:formSlug", async (req: Request, res: Response, next: NextF
 
     const fields = Array.isArray(page.fields) ? page.fields : [];
     const payload: Record<string, any> = {
-      id: crypto.randomUUID(),
       formSlug,
-      created_at: new Date().toISOString(),
       ...data,
     };
 
@@ -38,12 +35,16 @@ router.post("/:appId/:formSlug", async (req: Request, res: Response, next: NextF
       payload[fieldName] = value;
     }
 
-    const storageKey = getFormStorageKey(appId, formSlug);
-    const records = await localDb.getRecords(storageKey);
-    records.push(payload);
-    await localDb.setRecords(storageKey, records);
+    const userId = (req as any).user.id;
 
-    res.status(201).json({ success: true, record: payload });
+    const saved = await createDynamicRecord({
+      appId,
+      entityName: formSlug,
+      userId,
+      data: payload,
+    });
+
+    res.status(201).json({ success: true, record: saved });
   } catch (error) {
     next(error);
   }

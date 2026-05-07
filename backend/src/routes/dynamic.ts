@@ -1,16 +1,24 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { AppRegistry } from "../core/app-registry";
-import { localDb } from "../services/db";
+import { requireAuth } from "../middleware/auth";
+import {
+  createDynamicRecord,
+  getDynamicRecords,
+  updateDynamicRecord,
+  deleteDynamicRecord,
+} from "../services/dynamic-records";
 
 const router = Router();
 
 // This generic route handles all entities.
-router.get("/:appId/:entity", async (req: Request, res: Response, next: NextFunction) => {
+// All routes require authentication — every record is scoped to user_id.
+router.get("/:appId/:entity", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { appId, entity } = req.params as { appId: string, entity: string };
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const search = (req.query.search as string) || "";
+    const userId = (req as any).user.id;
 
     // Get config to determine searchable fields
     const config = await AppRegistry.get(appId);
@@ -19,23 +27,22 @@ router.get("/:appId/:entity", async (req: Request, res: Response, next: NextFunc
       ?.filter(f => !f.hidden && (f.type === "text" || f.type === "email" || f.type === "textarea"))
       .map(f => f.name) || [];
 
-    // Get from localDb
-    const { records, total } = await localDb.fetchDynamicRecords(
+    // Get from Supabase dynamic_records
+    const { records, total } = await getDynamicRecords({
       appId,
-      entity,
-      {
-        page,
-        limit,
-        search: search || undefined,
-        sort: req.query.sort as string | undefined,
-        order: req.query.order as string | undefined,
-      },
-      searchableFields
-    );
+      entityName: entity,
+      userId,
+      page,
+      limit,
+      search: search || undefined,
+      searchableFields,
+      sort: req.query.sort as string | undefined,
+      order: req.query.order as string | undefined,
+    });
 
     const totalPages = Math.ceil(total / limit);
 
-    console.log(`[GET /dynamic] appId=${appId}, entity=${entity}, page=${page}, limit=${limit}, total=${total}, records=${records?.length || 0}`);
+    console.log(`[GET /dynamic] appId=${appId}, entity=${entity}, userId=${userId}, page=${page}, limit=${limit}, total=${total}, records=${records?.length || 0}`);
 
     return res.json({
       success: true,
@@ -60,7 +67,7 @@ router.get("/:appId/:entity", async (req: Request, res: Response, next: NextFunc
   }
 });
 
-router.post("/:appId/:entity", async (req: Request, res: Response, next: NextFunction) => {
+router.post("/:appId/:entity", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { appId, entity } = req.params as { appId: string, entity: string };
     const config = await AppRegistry.get(appId);
@@ -69,19 +76,17 @@ router.post("/:appId/:entity", async (req: Request, res: Response, next: NextFun
     const entityConfig = config.entities.find(e => e.name === entity);
     if (!entityConfig) return res.status(404).json({ error: "Not Found", message: `Entity ${entity} not found` });
 
-    const record = {
-      id: crypto.randomUUID(),
-      app_id: appId,
-      entity: entity,
-      ...req.body,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    const userId = (req as any).user.id;
 
-    console.log(`[POST /dynamic] appId=${appId}, entity=${entity}, recordId=${record.id}, body=`, JSON.stringify(req.body));
+    console.log(`[POST /dynamic] appId=${appId}, entity=${entity}, userId=${userId}, body=`, JSON.stringify(req.body));
 
-    // Save to localDb (already working)
-    const saved = await localDb.saveDynamicRecord(appId, entity, record, entityConfig.fields);
+    // Save to Supabase dynamic_records
+    const saved = await createDynamicRecord({
+      appId,
+      entityName: entity,
+      userId,
+      data: req.body,
+    });
     
     console.log(`[POST /dynamic] Successfully saved record:`, JSON.stringify(saved));
 
@@ -95,7 +100,7 @@ router.post("/:appId/:entity", async (req: Request, res: Response, next: NextFun
   }
 });
 
-router.put("/:appId/:entity/:id", async (req: Request, res: Response, next: NextFunction) => {
+router.put("/:appId/:entity/:id", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { appId, entity, id } = req.params as { appId: string, entity: string, id: string };
         const config = await AppRegistry.get(appId);
@@ -103,6 +108,8 @@ router.put("/:appId/:entity/:id", async (req: Request, res: Response, next: Next
     
         const entityConfig = config.entities.find(e => e.name === entity);
         if (!entityConfig) return res.status(404).json({ error: "Not Found", message: `Entity ${entity} not found` });
+
+        const userId = (req as any).user.id;
 
         const updates: Record<string, any> = {};
     
@@ -117,7 +124,7 @@ router.put("/:appId/:entity/:id", async (req: Request, res: Response, next: Next
           }
         }
 
-        const updated = await localDb.updateDynamicRecord(appId, entity, id, updates);
+        const updated = await updateDynamicRecord(id, updates, userId);
         if (!updated) {
           return res.status(404).json({ error: "Not Found", message: "Record not found" });
         }
@@ -128,10 +135,11 @@ router.put("/:appId/:entity/:id", async (req: Request, res: Response, next: Next
       }
 });
 
-router.delete("/:appId/:entity/:id", async (req: Request, res: Response, next: NextFunction) => {
+router.delete("/:appId/:entity/:id", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { appId, entity, id } = req.params as { appId: string, entity: string, id: string };
-      await localDb.deleteDynamicRecord(appId, entity, id);
+        const userId = (req as any).user.id;
+      await deleteDynamicRecord(id, userId);
         res.status(204).send();
     } catch(err) {
         next(err);
