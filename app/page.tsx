@@ -82,6 +82,13 @@ export default function LandingPage() {
   const setValidationResult = useAppStore(state => state.setValidationResult);
   const user = useAppStore(state => state.user);
   const [myApps, setMyApps] = useState<any[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   useEffect(() => {
     const fetchApps = async () => {
@@ -272,13 +279,13 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {user && myApps.length > 0 && (
+        {user && myApps && Array.isArray(myApps) && myApps.length > 0 && (
           <section className="mt-16">
             <SectionHeader title="My Applications" description="Saved configurations ready to reopen, revise, or export." />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {myApps.map((tpl, i) => (
                 <TemplateCard
-                  key={tpl.app.id}
+                  key={tpl?.app?.id ?? i}
                   title={tpl.app.name}
                   description={tpl.app.description || "Saved generated app configuration."}
                   meta={`${tpl.entities?.length || 0} entities / ${tpl.views?.length || 0} views`}
@@ -286,7 +293,7 @@ export default function LandingPage() {
                   onClick={() => loadTemplate(tpl)}
                   action={
                     <button
-                      onClick={(e) => deleteApp(tpl.app.id, e)}
+                      onClick={(e) => deleteApp(tpl?.app?.id ?? '', e)}
                       className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-white group-hover:opacity-100"
                     >
                       <Trash2 className="h-4 w-4" />
@@ -301,9 +308,9 @@ export default function LandingPage() {
         <section id="templates" className="mt-16">
           <SectionHeader title="Templates" description="Start with a polished structure, then adapt the JSON to your workflow." />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {templates.map((tpl, i) => (
+            {templates && Array.isArray(templates) && templates.map((tpl, i) => (
               <TemplateCard
-                key={tpl.app.id}
+                key={tpl?.app?.id ?? i}
                 title={tpl.app.name}
                 description={"description" in tpl.app ? String(tpl.app.description) : "A ready-to-edit app scaffold with entities and pages."}
                 meta={`${tpl.entities.length} entities / ${tpl.views.length} views`}
