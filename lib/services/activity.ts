@@ -15,7 +15,7 @@ export interface UserActivity {
 }
 
 /**
- * Save user activity to Supabase
+ * Save user activity via backend API
  */
 export async function saveUserActivity(activity: Omit<UserActivity, 'id' | 'timestamp' | 'userId' | 'active'>): Promise<void> {
   try {
@@ -25,9 +25,13 @@ export async function saveUserActivity(activity: Omit<UserActivity, 'id' | 'time
       return;
     }
 
-    const activityData: UserActivity = {
+    const activityData = {
       ...activity,
       userId: user.id,
+      rawConfig: activity.rawConfig || "",
+      parsedConfig: activity.parsedConfig || {},
+      editorPanelWidth: typeof activity.editorPanelWidth === "number" ? activity.editorPanelWidth : 40,
+      sidebarCollapsed: typeof activity.sidebarCollapsed === "boolean" ? activity.sidebarCollapsed : false,
       timestamp: new Date().toISOString(),
       active: true,
     };
@@ -64,11 +68,29 @@ export async function loadUserActivity(): Promise<UserActivity | null> {
 
     try {
       const response = await apiClient.get('/activity/last-activity');
-      return response.data;
+      const data = response.data;
+      
+      // Backend returns null when no activity exists
+      if (!data) return null;
+      
+      // Normalize the response to ensure all fields have safe values
+      return {
+        id: data.id,
+        userId: data.userId || user.id,
+        appId: data.appId || null,
+        currentPageSlug: data.currentPageSlug || null,
+        rawConfig: typeof data.rawConfig === "string" ? data.rawConfig : "",
+        parsedConfig: data.parsedConfig || {},
+        editorPanelWidth: typeof data.editorPanelWidth === "number" ? data.editorPanelWidth : 40,
+        sidebarCollapsed: typeof data.sidebarCollapsed === "boolean" ? data.sidebarCollapsed : false,
+        timestamp: data.timestamp || new Date().toISOString(),
+        active: data.active !== false,
+      };
     } catch (e: any) {
-      if (e?.response?.status === 404) {
-        return null;  // route not built yet, silent fail
+      if (e?.response?.status === 404 || e?.response?.status === 401) {
+        return null;  // Not authenticated or route not found, silent fail
       }
+      console.warn("Failed to load activity from server:", e);
       return null;
     }
   } catch (error) {
@@ -82,7 +104,9 @@ export async function loadUserActivity(): Promise<UserActivity | null> {
  */
 export async function clearUserActivity(): Promise<void> {
   try {
-    localStorage.removeItem("user_activities");
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("user_activities");
+    }
     // Backend cleanup can be optional
     try {
       await apiClient.post("/activity/clear");
@@ -104,11 +128,14 @@ export async function getUserActivityHistory(limit: number = 10): Promise<UserAc
 
     try {
       const response = await apiClient.get(`/activity/history?limit=${limit}`);
-      return response.data || [];
+      return Array.isArray(response.data) ? response.data : [];
     } catch (apiError) {
       // Fallback to localStorage
-      const activities = JSON.parse(localStorage.getItem("user_activities") || "[]");
-      return activities.slice(-limit);
+      if (typeof window !== "undefined") {
+        const activities = JSON.parse(localStorage.getItem("user_activities") || "[]");
+        return activities.slice(-limit);
+      }
+      return [];
     }
   } catch (error) {
     console.error("Error fetching activity history:", error);

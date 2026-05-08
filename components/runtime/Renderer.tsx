@@ -4,7 +4,6 @@ import React, { useMemo } from "react";
 import { AppConfig, PageConfig, ViewConfig } from "../../types";
 import { AlertTriangle, Globe } from "lucide-react";
 import { useAppStore } from "../../store/use-app-store";
-import { motion, AnimatePresence } from "motion/react";
 import { DynamicForm } from "./DynamicForm";
 import { DynamicTable } from "./DynamicTable";
 import { DynamicAuth } from "./DynamicAuth";
@@ -126,7 +125,17 @@ export function Renderer({ config, locale }: { config: AppConfig; locale: string
   const setActiveLocale = useAppStore(s => s.setActiveLocale);
 
   if (pages.length === 0 || renderableViews.length === 0) {
-    return <div className="p-6 text-sm text-muted-foreground">No views configured.</div>;
+    return (
+      <div className="flex h-full items-center justify-center p-6 text-center">
+        <div className="max-w-sm rounded-[8px] border border-border bg-white p-6 shadow-sm">
+          <AlertTriangle className="mx-auto mb-3 h-6 w-6 text-[#9a5b3f]" />
+          <div className="text-sm font-semibold text-foreground">No views configured</div>
+          <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+            Add at least one table, form, or dashboard page to render the app preview.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   const selectedSlug = pages.some(page => page.slug === currentPageSlug) ? currentPageSlug : pages[0].slug;
@@ -136,14 +145,14 @@ export function Renderer({ config, locale }: { config: AppConfig; locale: string
   const supportedLocales = config.i18n?.supportedLocales || ["en"];
 
   return (
-    <div className="flex h-full w-full flex-col">
-      <div className="flex items-center justify-between border-b border-border bg-white/90">
-        <nav className="flex gap-1 overflow-x-auto px-4 py-2">
+    <div className="flex h-full w-full flex-col bg-[#fbfaf7]">
+      <div className="flex items-center justify-between border-b border-border bg-white/95 shadow-sm shadow-black/[0.02]">
+        <nav className="smooth-scroll flex gap-1 overflow-x-auto px-4 py-2">
           {pages.map(page => (
             <button
               key={page.slug}
               onClick={() => setCurrentPage(page.slug!)}
-              className={`whitespace-nowrap rounded-lg border px-3 py-1.5 font-mono text-xs transition-all ${
+              className={`whitespace-nowrap rounded-[8px] border px-3 py-1.5 font-mono text-xs transition-colors ${
                 selectedSlug === page.slug
                   ? "border-[#111318] bg-[#111318] text-white shadow-sm shadow-black/10"
                   : "border-border bg-white text-muted-foreground hover:border-[#0f6b7a]/40 hover:text-foreground"
@@ -176,21 +185,12 @@ export function Renderer({ config, locale }: { config: AppConfig; locale: string
         )}
       </div>
 
-      <div className="flex-1 overflow-auto bg-[#fbfaf7] p-4">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activePage.slug}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="h-full"
-          >
-            <React.Suspense fallback={<div className="h-64 w-full animate-pulse rounded-[8px] bg-accent" />}>
-              <Component view={activeView} page={activePage} config={config} locale={locale} changeView={setCurrentPage} />
-            </React.Suspense>
-          </motion.div>
-        </AnimatePresence>
+      <div className="smooth-scroll flex-1 overflow-auto bg-[#fbfaf7] p-4">
+        <div key={activePage.slug} className="h-full">
+          <React.Suspense fallback={<div className="soft-skeleton h-64 w-full rounded-[8px] border border-border" />}>
+            <Component view={activeView} page={activePage} config={config} locale={locale} changeView={setCurrentPage} />
+          </React.Suspense>
+        </div>
       </div>
     </div>
   );

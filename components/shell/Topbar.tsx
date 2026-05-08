@@ -52,7 +52,7 @@ export function Topbar() {
         {/* Mobile hamburger */}
         <button
           onClick={() => setMobileMenuOpen(true)}
-          className="md:hidden flex items-center justify-center w-9 h-9 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="md:hidden flex items-center justify-center w-9 h-9 rounded-[8px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
         >
           <Menu className="w-5 h-5" />
         </button>

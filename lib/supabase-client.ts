@@ -1,10 +1,29 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase env vars:', { supabaseUrl, supabaseAnonKey })
+  console.error('Missing Supabase env vars:', { supabaseUrl: !!supabaseUrl, supabaseAnonKey: !!supabaseAnonKey })
 }
 
-export const supabase = createClient(supabaseUrl!, supabaseAnonKey!)
+export const supabase: SupabaseClient = createClient(
+  supabaseUrl || 'https://placeholder.supabase.co',
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      // Prevent automatic token refresh from throwing uncaught [object Object] errors
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+    global: {
+      fetch: (...args) => {
+        return fetch(...args).catch((err) => {
+          console.warn('[supabase-client] Network fetch failed:', err);
+          throw err;
+        });
+      },
+    },
+  }
+)

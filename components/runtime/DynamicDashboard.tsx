@@ -1,8 +1,10 @@
 "use client";
 
+import type React from "react";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { Database, FileText, LayoutDashboard, Lock, Table2 } from "lucide-react";
 
 interface Props {
   config: any;
@@ -11,59 +13,65 @@ interface Props {
 export function DynamicDashboard({ config }: Props) {
   const appId = config?.app?.id || config?.appId || "";
 
+  const pages = useMemo(() => config?.pages?.filter(Boolean) ?? [], [config]);
+
   const tablePages = useMemo(
-    () => config?.pages?.filter((p: any) => p?.type === "table") ?? [],
-    [config]
+    () => pages.filter((p: any) => p?.type === "table"),
+    [pages]
   );
 
   const totalFields = useMemo(
     () =>
-      config?.pages?.reduce(
+      pages.reduce(
         (acc: number, p: any) => acc + (p?.fields?.length || 0),
         0
-      ) ?? 0,
-    [config]
+      ),
+    [pages]
   );
 
   return (
-    <div className="p-6 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+    <div className="mx-auto max-w-5xl p-4 sm:p-6">
+      <div className="mb-5 rounded-[8px] border border-border bg-white p-5 shadow-sm shadow-black/[0.03]">
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-[8px] border border-border bg-[#111318] text-white">
+          <LayoutDashboard className="h-4 w-4" />
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
           {config?.name || config?.app?.name || "Untitled App"}
         </h1>
-        <p className="text-sm text-gray-500 mt-1 font-mono">
-          {(appId || "no-id").slice(0, 8)} · v{config?.app?.version || "1.0.0"}
+        <p className="mt-1 font-mono text-[11px] uppercase text-muted-foreground">
+          {(appId || "no-id").slice(0, 8)} / v{config?.app?.version || "1.0.0"}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Pages" value={config?.pages?.length ?? 0} sub="total" />
-        <StatCard label="Tables" value={tablePages.length} sub="data entities" />
-        <StatCard label="Fields" value={totalFields} sub="across all pages" />
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard icon={FileText} label="Pages" value={pages.length} sub="total" />
+        <StatCard icon={Table2} label="Tables" value={tablePages.length} sub="data entities" />
+        <StatCard icon={Database} label="Fields" value={totalFields} sub="across all pages" />
         <StatCard
+          icon={Lock}
           label="Auth"
           value={config?.auth?.enabled ? "ON" : "OFF"}
           sub={config?.auth?.provider || "none"}
         />
       </div>
 
-      <div className="mb-6">
-        <div className="text-xs font-mono font-medium text-gray-400 uppercase tracking-widest mb-3">
+      <div className="mb-6 rounded-[8px] border border-border bg-white shadow-sm shadow-black/[0.03]">
+        <div className="border-b border-border px-4 py-3 text-xs font-semibold uppercase text-muted-foreground">
           Pages
         </div>
-        <div className="space-y-2">
-          {config?.pages?.filter(Boolean)?.map((page: any) => (
+        <div className="divide-y divide-border">
+          {pages.map((page: any) => (
             <PageSummaryRow key={page.slug || page.name} page={page} />
           ))}
         </div>
       </div>
 
       {tablePages.length > 0 && (
-        <div>
-          <div className="text-xs font-mono font-medium text-gray-400 uppercase tracking-widest mb-3">
+        <div className="rounded-[8px] border border-border bg-white shadow-sm shadow-black/[0.03]">
+          <div className="border-b border-border px-4 py-3 text-xs font-semibold uppercase text-muted-foreground">
             Live Data
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
             {tablePages.map((page: any) => (
               <LiveRecordCount key={page.slug || page.name} appId={appId} page={page} />
             ))}
@@ -75,49 +83,48 @@ export function DynamicDashboard({ config }: Props) {
 }
 
 function StatCard({
+  icon: Icon,
   label,
   value,
   sub,
 }: {
+  icon: React.ElementType;
   label: string;
   value: string | number;
   sub: string;
 }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-lg p-4">
-      <div className="text-xs font-mono text-gray-400 uppercase tracking-widest mb-2">
-        {label}
+    <div className="rounded-[8px] border border-border bg-white p-4 shadow-sm shadow-black/[0.03]">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-xs font-semibold uppercase text-muted-foreground">{label}</div>
+        <Icon className="h-4 w-4 text-[#0f6b7a]" />
       </div>
-      <div className="text-2xl font-bold text-gray-900 tracking-tight mb-1">{value}</div>
-      <div className="text-xs text-gray-400">{sub}</div>
+      <div className="mb-1 text-2xl font-semibold tracking-tight text-foreground">{value}</div>
+      <div className="text-xs text-muted-foreground">{sub}</div>
     </div>
   );
 }
 
 function PageSummaryRow({ page }: { page: any }) {
-  const typeIcon: Record<string, string> = {
-    table: "⊞",
-    form: "◧",
-    dashboard: "◈",
-    unknown: "⚠",
-  };
-
   const typeColor: Record<string, string> = {
-    table: "bg-blue-50 text-blue-600 border-blue-100",
-    form: "bg-green-50 text-green-600 border-green-100",
-    dashboard: "bg-violet-50 text-violet-600 border-violet-100",
-    unknown: "bg-amber-50 text-amber-600 border-amber-100",
+    table: "bg-[#edf7f8] text-[#0f6b7a] border-[#0f6b7a]/20",
+    form: "bg-green-50 text-green-700 border-green-200",
+    dashboard: "bg-[#f4f2ec] text-foreground border-border",
+    auth: "bg-[#111318] text-white border-[#111318]",
+    unknown: "bg-amber-50 text-amber-700 border-amber-200",
   };
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-md border border-gray-100">
-      <span className="text-gray-400 text-xs">{typeIcon[page.type] || "?"}</span>
-      <span className="text-sm font-medium text-gray-700 flex-1">{page.name || page.title}</span>
-      <span className="font-mono text-xs text-gray-400">{page.slug}</span>
-      <span className={`text-xs font-mono px-2 py-0.5 rounded border ${typeColor[page.type] || typeColor.unknown}`}>
+    <div className="flex items-center gap-3 px-4 py-3">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded border border-border bg-[#fbfaf7]">
+        <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{page.name || page.title}</span>
+      <span className="hidden font-mono text-xs text-muted-foreground sm:inline">{page.slug}</span>
+      <span className={`rounded border px-2 py-0.5 font-mono text-xs ${typeColor[page.type] || typeColor.unknown}`}>
         {page.type}
       </span>
-      <span className="text-xs text-gray-300 font-mono">{page.fields?.length ?? 0} fields</span>
+      <span className="font-mono text-xs text-muted-foreground">{page.fields?.length ?? 0} fields</span>
     </div>
   );
 }
@@ -137,18 +144,18 @@ function LiveRecordCount({ appId, page }: { appId: string; page: any }) {
   });
 
   return (
-    <div className="bg-white border border-gray-100 rounded-lg p-4 flex items-center gap-4">
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-gray-700 truncate">{page.name || page.title}</div>
-        <div className="text-xs text-gray-400 font-mono">{entity}</div>
+    <div className="flex items-center gap-4 rounded-[8px] border border-border bg-[#fbfaf7] p-4">
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-medium text-foreground">{page.name || page.title}</div>
+        <div className="font-mono text-xs text-muted-foreground">{entity}</div>
       </div>
       <div className="text-right">
         {isLoading ? (
-          <div className="w-8 h-5 bg-gray-100 rounded animate-pulse" />
+          <div className="soft-skeleton h-6 w-10 rounded border border-border" />
         ) : (
-          <div className="text-xl font-bold text-gray-900">{data ?? 0}</div>
+          <div className="text-xl font-semibold text-foreground">{data ?? 0}</div>
         )}
-        <div className="text-xs text-gray-400">records</div>
+        <div className="text-xs text-muted-foreground">records</div>
       </div>
     </div>
   );

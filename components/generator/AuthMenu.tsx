@@ -39,43 +39,68 @@ export function AuthMenu() {
   const [displayName, setDisplayName] = useState("");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
+  const hasRestoredRef = React.useRef(false);
+
   useEffect(() => {
+    let cancelled = false;
+
     const syncSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
         setUser(session?.user || null);
         setDisplayName(session?.user?.user_metadata?.name || "");
         if (session && typeof window !== "undefined") {
           localStorage.setItem("jwt_token", session.access_token);
-          // Restore user activity after login
-          await restoreUserActivity();
+          // Restore user activity after session init (only once)
+          if (!hasRestoredRef.current) {
+            hasRestoredRef.current = true;
+            try {
+              await restoreUserActivity();
+            } catch (e) {
+              console.warn("Activity restore failed (non-fatal):", e);
+            }
+          }
         }
       } catch (err) {
         console.error("Failed to load auth session", err);
-        setUser(null);
-        setDisplayName("");
+        if (!cancelled) {
+          setUser(null);
+          setDisplayName("");
+        }
       }
     };
 
     syncSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (cancelled) return;
       setUser(session?.user || null);
       setDisplayName(session?.user?.user_metadata?.name || "");
       if (session && typeof window !== "undefined") {
         localStorage.setItem("jwt_token", session.access_token);
-        // Restore activity on sign in
-        if (_event === "SIGNED_IN") {
-          await restoreUserActivity();
+        // Restore activity on explicit sign in (only if not already restored)
+        if (_event === "SIGNED_IN" && !hasRestoredRef.current) {
+          hasRestoredRef.current = true;
+          try {
+            await restoreUserActivity();
+          } catch (e) {
+            console.warn("Activity restore failed (non-fatal):", e);
+          }
         }
       } else {
         if (typeof window !== "undefined") {
           localStorage.removeItem("jwt_token");
         }
+        // Reset restore flag on sign out so next sign-in will restore
+        hasRestoredRef.current = false;
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleUpdateProfile = async () => {
@@ -118,10 +143,7 @@ export function AuthMenu() {
       toast.success(isSignUp ? "Account created successfully" : "Logged in successfully");
       setIsAuthMenuOpen(false);
       
-      // Restore activity after successful login
-      if (!isSignUp) {
-        await restoreUserActivity();
-      }
+      // Activity restore is handled by onAuthStateChange SIGNED_IN listener
     } catch (err: any) {
       toast.error(err.message);
     } finally {

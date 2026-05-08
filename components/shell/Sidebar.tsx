@@ -71,7 +71,7 @@ export function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`group relative flex items-center h-10 rounded-lg px-3 transition-all
+              className={`group relative flex items-center h-10 rounded-[8px] px-3 transition-all
                 ${isActive
                   ? "bg-[#111318] text-white font-medium shadow-sm shadow-black/10"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent"

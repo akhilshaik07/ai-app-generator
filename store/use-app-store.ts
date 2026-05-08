@@ -106,14 +106,14 @@ export interface AppStore {
   isAuthMenuOpen: boolean;
 
   setRawConfig: (raw: string) => void;
-  setParsedConfig: (config: AppConfig | null) => void;
-  setValidationResult: (result: ConfigValidationResult | null) => void;
+  setParsedConfig: (config: any) => void;
+  setValidationResult: (result: any) => void;
   setActiveAppId: (id: string | null) => void;
   setIsPreviewLoading: (loading: boolean) => void;
   setEditorPanelWidth: (width: number) => void;
   setActiveLocale: (locale: string) => void;
   setCurrentPage: (slug: string) => void;
-  applyConfigLocally: (jsonString: string) => void;
+  applyConfigLocally: (jsonString: any) => void;
 
   // Shell actions
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -148,35 +148,59 @@ export const useAppStore = create<AppStore>((set, get) => ({
   user: null,
   isAuthMenuOpen: false,
 
-  setRawConfig: (raw) => set({ rawConfig: raw }),
-  setParsedConfig: (config) => set((state) => {
-    const parsedConfig = normalizeAppConfig(config);
-    const pages = parsedConfig?.pages || [];
-    const currentPageSlug = pages.some(page => page.slug === state.currentPageSlug)
-      ? state.currentPageSlug
-      : pages[0]?.slug || null;
-
-    return { parsedConfig, currentPageSlug };
-  }),
-  setValidationResult: (result) => set({
-    validationResult: result
-      ? { ...result, normalized: normalizeAppConfig(result.normalized) || result.normalized }
-      : null
-  }),
+  setRawConfig: (raw) => {
+    const rawString = typeof raw === 'string' ? raw : JSON.stringify(raw);
+    set({ rawConfig: rawString });
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last_config", rawString);
+    }
+  },
+  setParsedConfig: (config) => {
+    const normalized = normalizeAppConfig(config);
+    set({ parsedConfig: normalized });
+    if (normalized && typeof window !== "undefined") {
+      localStorage.setItem("last_valid_config", JSON.stringify(normalized));
+    }
+  },
+  setValidationResult: (result) => {
+    if (!result) {
+      set({ validationResult: null });
+      return;
+    }
+    const normalized = normalizeAppConfig(result.normalized);
+    set({
+      validationResult: {
+        ...result,
+        normalized: normalized || result.normalized
+      }
+    });
+  },
   setActiveAppId: (id) => set({ activeAppId: id }),
   setIsPreviewLoading: (loading) => set({ isPreviewLoading: loading }),
   setEditorPanelWidth: (width) => set({ editorPanelWidth: Math.max(20, Math.min(80, width)) }),
   setActiveLocale: (locale) => set({ activeLocale: locale }),
   setCurrentPage: (slug: string) => { set({ currentPageSlug: slug }) },
-  applyConfigLocally: (jsonString: string) => {
+  applyConfigLocally: (jsonInput: any) => {
     try {
-      const raw = JSON.parse(jsonString);
+      let raw: any;
+      if (typeof jsonInput === 'string') {
+        if (!jsonInput.trim()) return;
+        raw = JSON.parse(jsonInput);
+      } else {
+        raw = jsonInput;
+      }
+
+      if (!raw || typeof raw !== 'object') return;
+
       // Normalize multiple config formats (A, B, C) to pages array
       const normalizedPages = normalizeToPages(raw);
       const enrichedRaw = { ...raw, pages: normalizedPages };
       const parsedConfig = normalizeAppConfig(enrichedRaw);
+      
+      if (!parsedConfig) return;
+
       set((state) => {
-        const pages = parsedConfig?.pages || [];
+        const pages = parsedConfig.pages || [];
         const currentPageSlug = pages.some((page: any) => page.slug === state.currentPageSlug)
           ? state.currentPageSlug
           : pages[0]?.slug || null;
@@ -185,13 +209,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
           parsedConfig, 
           currentPageSlug,
           // Clear errors on successful parse
-          validationResult: { valid: true, errors: [], warnings: [], normalized: parsedConfig as AppConfig }
+          validationResult: { 
+            valid: true, 
+            errors: [], 
+            warnings: [], 
+            normalized: parsedConfig 
+          }
         };
       });
+      
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_valid_config", JSON.stringify(parsedConfig));
+      }
     } catch (e) {
-      // Invalid JSON: do not update parsedConfig, but could set a validation error
+      console.error("Failed to parse config locally", e);
       set({
-        validationResult: { valid: false, errors: [{ path: "root", message: "Invalid JSON format", severity: "error" }], warnings: [], normalized: {} as AppConfig }
+        validationResult: { 
+          valid: false, 
+          errors: [{ 
+            path: "root", 
+            message: e instanceof Error ? e.message : "Invalid JSON format", 
+            severity: "error" 
+          }], 
+          warnings: [], 
+          normalized: {} as AppConfig 
+        }
       });
     }
   },
@@ -211,18 +253,33 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const { loadUserActivity } = await import("@/lib/services/activity");
       const activity = await loadUserActivity();
       
-      if (activity) {
-        set({
-          activeAppId: activity.appId,
-          currentPageSlug: activity.currentPageSlug,
-          rawConfig: activity.rawConfig,
-          editorPanelWidth: activity.editorPanelWidth,
-          sidebarCollapsed: activity.sidebarCollapsed,
-        });
-        
-        // Parse the config
-        const get_state = get();
-        get_state.applyConfigLocally(activity.rawConfig);
+      if (!activity) return;
+
+      // Defensive: ensure all fields have safe defaults
+      const rawConfig = typeof activity.rawConfig === "string" ? activity.rawConfig : "";
+      const editorPanelWidth = typeof activity.editorPanelWidth === "number" && !isNaN(activity.editorPanelWidth)
+        ? activity.editorPanelWidth
+        : 40;
+      const sidebarCollapsed = typeof activity.sidebarCollapsed === "boolean"
+        ? activity.sidebarCollapsed
+        : false;
+
+      set({
+        activeAppId: activity.appId || null,
+        currentPageSlug: activity.currentPageSlug || null,
+        rawConfig,
+        editorPanelWidth,
+        sidebarCollapsed,
+      });
+      
+      // Only parse if we have a non-empty config string
+      if (rawConfig.trim()) {
+        try {
+          const get_state = get();
+          get_state.applyConfigLocally(rawConfig);
+        } catch (parseError) {
+          console.warn("Failed to parse restored config:", parseError);
+        }
       }
     } catch (error) {
       console.error("Error restoring user activity:", error);

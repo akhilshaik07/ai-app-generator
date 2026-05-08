@@ -8,7 +8,6 @@ import { templates } from "@/lib/templates";
 import { supabase } from "@/lib/supabase-client";
 import { apiClient } from "@/lib/api-client";
 import { BentoGrid, BentoGridItem } from "@/components/ui/bento-grid";
-import { Spotlight } from "@/components/ui/spotlight";
 import {
   ArrowRight,
   Braces,
@@ -82,13 +81,6 @@ export default function LandingPage() {
   const setValidationResult = useAppStore(state => state.setValidationResult);
   const user = useAppStore(state => state.user);
   const [myApps, setMyApps] = useState<any[]>([]);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
 
   useEffect(() => {
     const fetchApps = async () => {
@@ -147,8 +139,6 @@ export default function LandingPage() {
   return (
     <div className="min-h-full text-foreground selection:bg-foreground selection:text-background">
       <section className="relative overflow-hidden border-b border-border hero-stage">
-        <Spotlight className="-top-40 left-0 md:left-60 md:-top-20" fill="white" />
-        <Spotlight className="top-10 left-full md:-left-40" fill="#0f6b7a" />
         <div className="absolute inset-0 opacity-70">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(17,19,24,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(17,19,24,0.05)_1px,transparent_1px)] bg-[size:42px_42px]" />
           <div className="absolute right-[-8%] top-8 h-[540px] w-[72%] rounded-[8px] border border-white/20 bg-white/40 backdrop-blur-xl shadow-2xl shadow-black/10" />
@@ -316,7 +306,7 @@ export default function LandingPage() {
                 meta={`${tpl.entities.length} entities / ${tpl.views.length} views`}
                 accent={accentLines[i % accentLines.length]}
                 badge={tpl.auth?.enabled ? "Auth enabled" : "No auth"}
-                details={tpl.entities.slice(0, 2).map((entity) => entity.label || entity.name).join(" • ")}
+                details={tpl.entities.slice(0, 2).map((entity) => entity.label || entity.name).join(" / ")}
                 onClick={() => loadTemplate(tpl)}
               />
             ))}
@@ -387,14 +377,25 @@ function TemplateCard({
   onClick: () => void;
 }) {
   return (
-    <button
+    <div
       onClick={onClick}
-      className="group studio-surface relative flex h-56 flex-col overflow-hidden rounded-[12px] border border-border bg-white/92 p-5 text-left shadow-sm shadow-black/[0.03] transition-all hover:-translate-y-0.5 hover:border-[#0f6b7a]/35 hover:shadow-xl hover:shadow-black/[0.08]"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="group studio-surface relative flex h-56 cursor-pointer flex-col overflow-hidden rounded-[8px] border border-border bg-white/92 p-5 text-left shadow-sm shadow-black/[0.03] transition-all hover:-translate-y-0.5 hover:border-[#0f6b7a]/35 hover:shadow-xl hover:shadow-black/[0.08]"
     >
       <span className="absolute inset-x-0 top-0 h-1" style={{ backgroundColor: accent }} />
       <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-[#111318] font-mono text-[13px] font-bold text-white shadow-sm">
-          {title.charAt(0)}
+        <div className="grid h-11 w-11 shrink-0 grid-cols-2 gap-1 rounded-[8px] border border-border bg-[#fbfaf7] p-1 shadow-sm">
+          <span className="rounded-sm bg-[#111318]" />
+          <span className="rounded-sm bg-[#0f6b7a]" />
+          <span className="rounded-sm bg-[#9a5b3f]" />
+          <span className="rounded-sm border border-border bg-white" />
         </div>
         <div className="flex items-center gap-2">
           {badge && <span className="rounded-full border border-border bg-[#fbfaf7] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">{badge}</span>}
@@ -410,6 +411,6 @@ function TemplateCard({
           <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
         </span>
       </div>
-    </button>
+    </div>
   );
 }

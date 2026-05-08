@@ -66,10 +66,12 @@ export function normalizeToPages(raw: any): PageConfig[] {
   return []
 }
 
-function toSlug(str: string): string {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+function toSlug(str: any): string {
+  const s = typeof str === 'string' ? str : String(str || '');
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
-function toLabel(str: string): string {
-  return str.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+function toLabel(str: any): string {
+  const s = typeof str === 'string' ? str : String(str || '');
+  return s.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }

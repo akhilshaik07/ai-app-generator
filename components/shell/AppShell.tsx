@@ -36,9 +36,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useActivityAutoSave(30000);
 
   React.useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-    });
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user || null);
+      })
+      .catch((err) => {
+        console.warn("Failed to get auth session:", err);
+        setUser(null);
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user || null);
@@ -108,7 +113,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center h-9 rounded px-3 transition-colors
+                      className={`flex items-center h-9 rounded-[8px] px-3 transition-colors
                         ${isActive
                           ? "bg-accent text-foreground font-medium"
                           : "text-muted-foreground hover:text-foreground hover:bg-accent"
@@ -130,19 +135,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-transparent">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={pathname}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="h-full"
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
+        <main className="app-shell-main smooth-scroll flex-1 overflow-y-auto overflow-x-hidden bg-transparent">
+          <div className="h-full">{children}</div>
         </main>
       </div>
 
