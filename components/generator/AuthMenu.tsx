@@ -346,7 +346,9 @@ export function AuthMenu() {
                        <div className="flex items-center gap-3 px-4 py-3 bg-muted/50 border border-border/50 rounded-xl">
                          <Mail className="w-4 h-4 text-muted-foreground/60" />
                          <span className="text-sm font-medium text-muted-foreground/80">{user.email}</span>
-                         <Shield className="w-3.5 h-3.5 text-emerald-500 ml-auto" title="Identity Verified" />
+                         <span title="Identity Verified" className="ml-auto flex items-center">
+                           <Shield className="w-3.5 h-3.5 text-emerald-500" />
+                         </span>
                        </div>
                     </div>
                   </div>
