@@ -34,6 +34,9 @@ export function AuthMenu() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
 
   // Profile Edit State
   const [displayName, setDisplayName] = useState("");
@@ -121,31 +124,53 @@ export function AuthMenu() {
 
   const handleAuth = async (isSignUp: boolean) => {
     setIsLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
       let data: any;
-      let error: any;
+      let authError: any;
 
       if (isSignUp) {
         const response = await apiClient.post("/auth/register", { email, password });
         data = response.data;
+        // apiClient throws on non-2xx, so if we're here it succeeded
       } else {
         const result = await supabase.auth.signInWithPassword({ email, password });
         data = result.data;
-        error = result.error;
+        authError = result.error;
       }
-      
-      if (error) throw error;
+
+      if (authError) throw authError;
 
       if (isSignUp && data?.session?.access_token && typeof window !== "undefined") {
         localStorage.setItem("jwt_token", data.session.access_token);
       }
-      
-      toast.success(isSignUp ? "Account created successfully" : "Logged in successfully");
-      setIsAuthMenuOpen(false);
-      
-      // Activity restore is handled by onAuthStateChange SIGNED_IN listener
+
+      if (isSignUp) {
+        setSuccess("Account created! You can now log in.");
+        setActiveTab("login");
+        setEmail("");
+        setPassword("");
+      } else {
+        setSuccess("Welcome back!");
+        setTimeout(() => {
+          setIsAuthMenuOpen(false);
+          setSuccess(null);
+        }, 1000);
+      }
     } catch (err: any) {
-      toast.error(err.message);
+      const raw = err?.response?.data?.error || err?.message || err?.error_description || "Something went wrong";
+      if (raw.includes("Invalid login credentials")) {
+        setError("Wrong email or password. Please try again.");
+      } else if (raw.includes("User already registered")) {
+        setError("An account with this email already exists. Try logging in.");
+      } else if (raw.includes("Password should be")) {
+        setError("Password must be at least 6 characters.");
+      } else if (raw.includes("Unable to validate email")) {
+        setError("Please enter a valid email address.");
+      } else {
+        setError(raw);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -229,7 +254,7 @@ export function AuthMenu() {
         <DialogHeader>
           <DialogTitle className="text-text-primary">Authentication</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="login" className="w-full mt-4">
+        <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v as "login" | "signup"); setError(null); setSuccess(null); }} className="w-full mt-4">
           <TabsList className="grid w-full grid-cols-2 bg-base">
             <TabsTrigger value="login" className="data-[state=active]:bg-elevated">Login</TabsTrigger>
             <TabsTrigger value="signup" className="data-[state=active]:bg-elevated">Sign Up</TabsTrigger>
@@ -261,14 +286,24 @@ export function AuthMenu() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} className="bg-base border-border-default" placeholder="you@example.com" />
+              <Input id="email" type="email" value={email} onChange={e => { setEmail(e.target.value); setError(null); }} className="bg-base border-border-default" placeholder="you@example.com" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} className="bg-base border-border-default" />
+              <Input id="password" type="password" value={password} onChange={e => { setPassword(e.target.value); setError(null); }} className="bg-base border-border-default" />
             </div>
+            {error && (
+              <div className="w-full px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="w-full px-3 py-2 rounded-md bg-green-50 border border-green-200 text-green-600 text-sm">
+                {success}
+              </div>
+            )}
             <Button className="w-full bg-accent hover:bg-accent/90" onClick={() => handleAuth(false)} disabled={isLoading}>
-              {isLoading ? "Loading..." : "Login"}
+              {isLoading ? "Signing in..." : "Login"}
             </Button>
           </TabsContent>
           
@@ -298,14 +333,24 @@ export function AuthMenu() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="email-up">Email</Label>
-              <Input id="email-up" type="email" value={email} onChange={e => setEmail(e.target.value)} className="bg-base border-border-default" placeholder="you@example.com" />
+              <Input id="email-up" type="email" value={email} onChange={e => { setEmail(e.target.value); setError(null); }} className="bg-base border-border-default" placeholder="you@example.com" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password-up">Password</Label>
-              <Input id="password-up" type="password" value={password} onChange={e => setPassword(e.target.value)} className="bg-base border-border-default" />
+              <Input id="password-up" type="password" value={password} onChange={e => { setPassword(e.target.value); setError(null); }} className="bg-base border-border-default" />
             </div>
+            {error && (
+              <div className="w-full px-3 py-2 rounded-md bg-red-50 border border-red-200 text-red-600 text-sm">
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="w-full px-3 py-2 rounded-md bg-green-50 border border-green-200 text-green-200 text-sm">
+                {success}
+              </div>
+            )}
             <Button className="w-full bg-accent hover:bg-accent/90" onClick={() => handleAuth(true)} disabled={isLoading}>
-              {isLoading ? "Loading..." : "Create Account"}
+              {isLoading ? "Creating account..." : "Create Account"}
             </Button>
           </TabsContent>
         </Tabs>
