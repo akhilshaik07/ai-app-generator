@@ -6,6 +6,22 @@ import { requireAuth } from "../middleware/auth";
 
 const router = Router();
 
+router.get("/check-name", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { repoName, userGithubToken } = req.query;
+    const token = (userGithubToken as string) || process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+    
+    if (!token) {
+      return res.status(400).json({ error: "invalid_token" });
+    }
+
+    const isAvailable = await GithubService.isRepoAvailable(token, repoName as string);
+    res.status(200).json({ isAvailable });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post("/github", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { appId, repoName, isPrivate, description, licenseTemplate, userGithubToken } = req.body;

@@ -136,12 +136,15 @@ export function VersionControl() {
                 ) : snapshots.length === 0 ? (
                   <p className="text-xs text-muted-foreground">No snapshots saved yet.</p>
                 ) : (
-                  snapshots.slice().reverse().map((snap) => (
+                  Array.isArray(snapshots) && snapshots.slice().reverse().map((snap) => (
                     <div key={snap.id} className="p-3 bg-muted/50 border rounded-lg flex flex-col space-y-3 transition-colors hover:bg-muted">
                        <div className="flex justify-between items-start">
                           <div>
                             <h5 className="text-[13px] font-semibold text-foreground">{snap.name}</h5>
                             {snap.description && <p className="text-xs text-muted-foreground mt-1">{snap.description}</p>}
+                            <div className="mt-2 font-mono text-[9px] text-muted-foreground/60 truncate bg-muted/30 px-1.5 py-0.5 rounded border border-border/50">
+                               {typeof snap.config === 'object' ? JSON.stringify(snap.config).substring(0, 80) : String(snap.config).substring(0, 80)}...
+                            </div>
                           </div>
                        </div>
                        <div className="flex items-center justify-between pt-3 border-t">

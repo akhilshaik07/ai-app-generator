@@ -221,8 +221,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       if (typeof window !== "undefined") {
         localStorage.setItem("last_valid_config", JSON.stringify(parsedConfig));
       }
-    } catch (e) {
-      console.error("Failed to parse config locally", e);
+    } catch (e: any) {
+      const errorMsg = e instanceof Error ? e.message : (typeof e === 'string' ? e : JSON.stringify(e));
+      console.error("Failed to parse config locally:", errorMsg);
       set({
         validationResult: { 
           valid: false, 
@@ -281,8 +282,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
           console.warn("Failed to parse restored config:", parseError);
         }
       }
-    } catch (error) {
-      console.error("Error restoring user activity:", error);
+    } catch (error: any) {
+      const errorMsg = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
+      console.error("Error restoring user activity:", errorMsg);
     }
   },
 

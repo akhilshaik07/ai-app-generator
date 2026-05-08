@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/use-app-store";
 import { apiClient } from "@/lib/api-client";
 import { exportToGitHub } from "@/lib/auth/github-auth";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import {
   Rocket,
   CheckCircle2,
@@ -78,6 +79,11 @@ export default function DeployPage() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [licenseTemplate, setLicenseTemplate] = useState("mit");
 
+  // Name validation
+  const [isCheckingName, setIsCheckingName] = useState(false);
+  const [nameAvailable, setNameAvailable] = useState<boolean | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
+
   // Deploy progress
   const [deploySteps, setDeploySteps] = useState([
     { label: "Validating configuration", status: "pending" as "pending" | "active" | "done" | "error" },
@@ -86,6 +92,30 @@ export default function DeployPage() {
     { label: "Pushing code to repository", status: "pending" as const },
     { label: "Finalizing deployment", status: "pending" as const },
   ]);
+
+  // Debounced name check
+  React.useEffect(() => {
+    if (!repoName.trim() || currentStep !== 2) return;
+    
+    const timer = setTimeout(async () => {
+      setIsCheckingName(true);
+      setNameError(null);
+      try {
+        const res = await apiClient.get(`/export/check-name?repoName=${repoName}`);
+        setNameAvailable(res.data.isAvailable);
+        if (!res.data.isAvailable) {
+          setNameError("Repository name already exists on your GitHub.");
+        }
+      } catch (e: any) {
+        console.error("Name check failed", e);
+        setNameAvailable(null);
+      } finally {
+        setIsCheckingName(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [repoName, currentStep]);
 
   const handleDeploy = async () => {
     if (!parsedConfig?.app?.id) return;
@@ -127,7 +157,27 @@ export default function DeployPage() {
       if (resData.success) {
         setRepoUrl(resData.repoUrl);
         setDeployComplete(true);
-        toast.success("Successfully deployed!");
+        
+        // Trigger amazing confetti
+        const duration = 5 * 1000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+        const randomInRange = (min: number, max: number) => Math.random() * (max - min) + min;
+
+        const interval: any = setInterval(function() {
+          const timeLeft = animationEnd - Date.now();
+
+          if (timeLeft <= 0) {
+            return clearInterval(interval);
+          }
+
+          const particleCount = 50 * (timeLeft / duration);
+          confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } });
+          confetti({ ...defaults, particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } });
+        }, 250);
+
+        toast.success("Successfully Popped! Check your GitHub.");
       }
     } catch (e: any) {
       const failIdx = deploySteps.findIndex((s) => s.status === "active");
@@ -148,7 +198,7 @@ export default function DeployPage() {
   const canProceed = () => {
     if (currentStep === 0) return !!parsedConfig;
     if (currentStep === 1) return selectedTarget === "github";
-    if (currentStep === 2) return repoName.trim().length > 0;
+    if (currentStep === 2) return repoName.trim().length > 0 && nameAvailable === true && !isCheckingName;
     return false;
   };
 
@@ -426,12 +476,28 @@ export default function DeployPage() {
                   <label className="block text-[11px] font-mono uppercase text-muted-foreground mb-1.5">
                     Repository Name
                   </label>
-                  <input
-                    value={repoName}
-                    onChange={(e) => setRepoName(e.target.value)}
-                    placeholder="my-ai-app"
-                    className="w-full bg-background border border-border rounded px-3.5 py-2.5 text-[13px] font-mono text-foreground focus:border-foreground outline-none transition-all placeholder:text-muted-foreground"
-                  />
+                  <div className="relative">
+                    <input
+                      value={repoName}
+                      onChange={(e) => setRepoName(e.target.value)}
+                      placeholder="my-ai-app"
+                      className={`w-full bg-background border ${nameError ? "border-red-400" : nameAvailable === true ? "border-emerald-400" : "border-border"} rounded px-3.5 py-2.5 text-[13px] font-mono text-foreground focus:border-foreground outline-none transition-all placeholder:text-muted-foreground pr-10`}
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {isCheckingName ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      ) : nameAvailable === true ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      ) : nameAvailable === false ? (
+                        <Circle className="w-4 h-4 text-red-500" />
+                      ) : null}
+                    </div>
+                  </div>
+                  {nameError && (
+                    <p className="mt-1.5 text-[11px] text-red-500 font-medium">
+                      {nameError}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -548,7 +614,7 @@ export default function DeployPage() {
                     <CheckCircle2 className="w-8 h-8 text-emerald-600" />
                   </div>
                   <h2 className="text-xl font-bold text-foreground mb-2">
-                    Deployed Successfully!
+                    Successfully Popped!
                   </h2>
                   <p className="text-muted-foreground text-[14px] mb-6">
                     Your app has been exported to GitHub.

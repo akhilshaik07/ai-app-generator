@@ -1,6 +1,20 @@
 import { Octokit } from "@octokit/rest";
 
 export class GithubService {
+  static async isRepoAvailable(token: string, repoName: string): Promise<boolean> {
+    const octokit = new Octokit({ auth: token });
+    try {
+      const { data: { login: owner } } = await octokit.users.getAuthenticated();
+      await octokit.repos.get({ owner, repo: repoName });
+      return false; // Repo exists
+    } catch (e: any) {
+      if (e.status === 404) {
+        return true; // Repo doesn't exist
+      }
+      throw e;
+    }
+  }
+
   static async exportToRepo(
     token: string, 
     repoName: string, 

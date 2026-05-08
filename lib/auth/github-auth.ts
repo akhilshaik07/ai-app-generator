@@ -9,7 +9,10 @@ export async function signInWithGitHub() {
       scopes: "repo", // Request repo scope for GitHub export
     },
   });
-  if (error) throw error;
+  if (error) {
+    const message = error.message || "Failed to sign in with GitHub";
+    throw new Error(message);
+  }
   return data;
 }
 

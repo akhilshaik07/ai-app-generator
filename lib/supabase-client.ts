@@ -20,8 +20,9 @@ export const supabase: SupabaseClient = createClient(
     global: {
       fetch: (...args) => {
         return fetch(...args).catch((err) => {
-          console.warn('[supabase-client] Network fetch failed:', err);
-          throw err;
+          const message = err instanceof Error ? err.message : "Network error";
+          console.warn('[supabase-client] Network fetch failed:', message);
+          throw new Error(message);
         });
       },
     },

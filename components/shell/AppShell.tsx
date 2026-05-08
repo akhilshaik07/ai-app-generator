@@ -41,7 +41,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setUser(session?.user || null);
       })
       .catch((err) => {
-        console.warn("Failed to get auth session:", err);
+        const msg = err instanceof Error ? err.message : "Session error";
+        console.warn("Failed to get auth session:", msg);
         setUser(null);
       });
 
