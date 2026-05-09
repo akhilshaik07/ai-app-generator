@@ -25,7 +25,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
   const [sortOrder, setSortOrder] = useState<"asc"|"desc">("asc");
 
   const [visibleColumns, setVisibleColumns] = useState<Set<string>>(new Set(
-    entityConfig?.fields.filter(f => !f.hidden).map(f => f.name) || []
+    (entityConfig?.fields || []).filter(f => f && !f.hidden).map(f => f.name) || []
   ));
 
   const [importDialogOpen, setImportDialogOpen] = useState(false);
@@ -68,7 +68,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
        // Autocreate mappings
        const initialMapping: Record<string, string> = {};
        res.data.columns.forEach((col: string) => {
-          const match = entityConfig?.fields.find(f => f.name.toLowerCase() === col.toLowerCase() || (f.label && f.label.toLowerCase() === col.toLowerCase()));
+          const match = (entityConfig?.fields || []).filter(Boolean).find(f => f.name.toLowerCase() === col.toLowerCase() || (f.label && f.label.toLowerCase() === col.toLowerCase()));
           if (match) {
              initialMapping[col] = match.name;
           }
@@ -432,7 +432,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
                    </div>
                    
                    <div className="space-y-3">
-                      {entityConfig.fields.map(field => (
+                      {(entityConfig?.fields || []).filter(Boolean).map(field => (
                           <div key={field.name} className="flex items-center justify-between rounded-[8px] border border-border p-2 text-sm">
                               <span className="font-medium w-1/3 truncate" title={field.label}>{field.label} {field.required ? "*" : ""}</span>
                               <div className="flex-1 max-w-[200px]">

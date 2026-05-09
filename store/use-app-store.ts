@@ -19,7 +19,9 @@ function pageToEntity(page: PageConfig, index: number): EntityConfig {
     name: pageEntityName(page, index),
     label: page.label || page.title || page.name || page.id || pageEntityName(page, index),
     timestamps: page.timestamps !== false,
-    fields: Array.isArray(page.fields) && typeof page.fields[0] !== "string" ? page.fields as EntityConfig["fields"] : [],
+    fields: (Array.isArray(page.fields) && typeof page.fields[0] !== "string") 
+      ? (page.fields as any[]).filter(Boolean) as EntityConfig["fields"]
+      : [],
   };
 }
 
