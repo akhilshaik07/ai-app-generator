@@ -36,9 +36,10 @@ export function DynamicForm({ view, page, config }: { view: ViewConfig; page?: P
     return field;
   };
 
-  let fieldsToRender = entityConfig
+  let fieldsToRender = (entityConfig
     ? entityConfig.fields.filter(f => !f.hidden)
-    : pageFields.map(normalizeField).filter(f => !f.hidden);
+    : pageFields.map(normalizeField).filter(f => !f.hidden))
+    .filter(Boolean); // Safe filter for null/undefined fields
 
   if (view.fields && view.fields.length > 0 && entityConfig) {
     fieldsToRender = fieldsToRender.filter(f => view.fields!.includes(f.name));
@@ -69,8 +70,8 @@ export function DynamicForm({ view, page, config }: { view: ViewConfig; page?: P
 
     try {
       const endpoint = entityConfig
-        ? `/dynamic/${config.app.id}/${entityConfig.name}`
-        : `/forms/${config.app.id}/${page?.slug || view.id}`;
+        ? `/dynamic/${config.app?.id || 'default'}/${entityConfig.name}`
+        : `/forms/${config.app?.id || 'default'}/${page?.slug || view.id}`;
 
       console.log(`[DynamicForm] Submitting to ${endpoint}`, formData);
 
@@ -79,8 +80,8 @@ export function DynamicForm({ view, page, config }: { view: ViewConfig; page?: P
 
       if (entityConfig) {
         console.log(`[DynamicForm] Invalidating query cache for records`);
-        await queryClient.invalidateQueries({ queryKey: ["records", config.app.id, entityConfig.name] });
-        await queryClient.refetchQueries({ queryKey: ["records", config.app.id, entityConfig.name] });
+        await queryClient.invalidateQueries({ queryKey: ["records", config.app?.id || 'default', entityConfig.name] });
+        await queryClient.refetchQueries({ queryKey: ["records", config.app?.id || 'default', entityConfig.name] });
       }
 
       toast.success(t("success") || "Record created successfully");
@@ -125,38 +126,41 @@ export function DynamicForm({ view, page, config }: { view: ViewConfig; page?: P
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              {fieldsToRender.map(field => {
+              {fieldsToRender.map((field, idx) => {
+                const fieldName = field.name || `field_${idx}`;
+                const fieldLabel = field.label || field.name || "Untitled Field";
+
                 let InputCmp = (
                   <Input
                     className="bg-[#fbfaf7]"
                     type="text"
-                    value={formData[field.name] || ""}
-                    onChange={e => handleChange(field.name, e.target.value)}
+                    value={formData[fieldName] || ""}
+                    onChange={e => handleChange(fieldName, e.target.value)}
                   />
                 );
 
                 if (field.type === "textarea") {
-                  InputCmp = <Textarea className="bg-[#fbfaf7]" value={formData[field.name] || ""} onChange={e => handleChange(field.name, e.target.value)} rows={4} />;
+                  InputCmp = <Textarea className="bg-[#fbfaf7]" value={formData[fieldName] || ""} onChange={e => handleChange(fieldName, e.target.value)} rows={4} />;
                 } else if (field.type === "number") {
-                  InputCmp = <Input className="bg-[#fbfaf7]" type="number" min={field.min} max={field.max} value={formData[field.name] || ""} onChange={e => handleChange(field.name, e.target.value)} />;
+                  InputCmp = <Input className="bg-[#fbfaf7]" type="number" min={field.min} max={field.max} value={formData[fieldName] || ""} onChange={e => handleChange(fieldName, e.target.value)} />;
                 } else if (field.type === "boolean") {
-                  InputCmp = <Checkbox checked={!!formData[field.name]} onCheckedChange={checked => handleChange(field.name, checked)} />;
+                  InputCmp = <Checkbox checked={!!formData[fieldName]} onCheckedChange={checked => handleChange(fieldName, checked)} />;
                 } else if (field.type === "date" || field.type === "calendar") {
-                  InputCmp = <Input className="bg-[#fbfaf7]" type="date" value={formData[field.name] || ""} onChange={e => handleChange(field.name, e.target.value)} />;
+                  InputCmp = <Input className="bg-[#fbfaf7]" type="date" value={formData[fieldName] || ""} onChange={e => handleChange(fieldName, e.target.value)} />;
                 } else if (field.type === "file" || field.type === "upload") {
-                  InputCmp = <Input className="bg-[#fbfaf7]" type="file" onChange={e => handleChange(field.name, e.target.files?.[0])} />;
+                  InputCmp = <Input className="bg-[#fbfaf7]" type="file" onChange={e => handleChange(fieldName, e.target.files?.[0])} />;
                 } else if (field.type === "richtext" || field.type === "html") {
                   InputCmp = (
                     <div
                       className="min-h-[100px] w-full rounded-md border border-input bg-[#fbfaf7] px-3 py-2 text-sm text-foreground outline-none whitespace-pre-wrap focus-visible:ring-1 focus-visible:ring-ring"
                       contentEditable
-                      onBlur={e => handleChange(field.name, e.currentTarget.innerText)}
-                      dangerouslySetInnerHTML={{ __html: formData[field.name] || "" }}
+                      onBlur={e => handleChange(fieldName, e.currentTarget.innerText)}
+                      dangerouslySetInnerHTML={{ __html: formData[fieldName] || "" }}
                     />
                   );
                 } else if (field.type === "select") {
                   InputCmp = (
-                    <select value={formData[field.name] || ""} onChange={e => handleChange(field.name, e.target.value)} className="w-full rounded-md border border-input bg-[#fbfaf7] px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring">
+                    <select value={formData[fieldName] || ""} onChange={e => handleChange(fieldName, e.target.value)} className="w-full rounded-md border border-input bg-[#fbfaf7] px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-1 focus-visible:ring-ring">
                       <option value="" disabled>Select an option</option>
                       {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                     </select>
@@ -171,10 +175,13 @@ export function DynamicForm({ view, page, config }: { view: ViewConfig; page?: P
                 }
 
                 const isFullWidth = field.type === "textarea" || field.type === "richtext" || field.type === "html" || field.type === "json";
+                const fieldName = field.name || `field_${Math.random().toString(36).substring(7)}`;
+                const fieldLabel = field.label || field.name || "Untitled Field";
+                
                 return (
-                  <div key={field.name} className={`space-y-2.5 ${isFullWidth ? "md:col-span-2" : ""}`}>
+                  <div key={fieldName} className={`space-y-2.5 ${isFullWidth ? "md:col-span-2" : ""}`}>
                     <Label className="flex items-center text-sm font-medium text-foreground">
-                      {field.label} {field.required && <span className="ml-1 text-destructive">*</span>}
+                      {fieldLabel} {field.required && <span className="ml-1 text-destructive">*</span>}
                     </Label>
                     {field.type === "boolean" ? (
                       <div className="flex h-10 w-fit items-center rounded-md border border-input bg-[#fbfaf7] px-3 py-2 shadow-sm">
@@ -184,7 +191,7 @@ export function DynamicForm({ view, page, config }: { view: ViewConfig; page?: P
                     ) : (
                       <div className="relative">{InputCmp}</div>
                     )}
-                    {errors[field.name] && <div className="mt-1.5 text-[11px] font-medium text-destructive">{errors[field.name]}</div>}
+                    {errors[fieldName] && <div className="mt-1.5 text-[11px] font-medium text-destructive">{errors[fieldName]}</div>}
                   </div>
                 );
               })}

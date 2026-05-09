@@ -79,7 +79,8 @@ function normalizeAppConfig(input: AppConfig | null): AppConfig | null {
 
   return {
     ...raw,
-    name: raw.name ?? raw.app?.name,
+    app: raw.app ?? { id: "default-app", name: raw.name || "My App", version: "1.0.0" },
+    name: raw.name ?? raw.app?.name ?? "My App",
     pages,
     entities,
     views,

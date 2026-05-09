@@ -71,7 +71,10 @@ function pageToView(page: PageConfig, index: number, existingView?: ViewConfig):
     (type === "table" ? String(page.name || page.id || id) : undefined) ||
     existingView?.entity;
   const fields = Array.isArray(page.fields)
-    ? page.fields.map((field: any) => typeof field === "string" ? field : field?.name).filter(Boolean)
+    ? (page.fields as any[])
+        .filter(Boolean)
+        .map((field: any) => (typeof field === "string" ? field : field?.name))
+        .filter(Boolean)
     : existingView?.fields;
 
   return {

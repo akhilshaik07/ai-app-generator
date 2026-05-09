@@ -56,7 +56,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
 
      setIsImporting(true);
      try {
-       const res = await apiClient.post(`/csv/upload/${config.app.id}/${entityConfig?.name}`, formData, {
+       const res = await apiClient.post(`/csv/upload/${config.app?.id || 'default'}/${entityConfig?.name || 'default'}`, formData, {
          headers: { "Content-Type": "multipart/form-data" }
        });
        setCsvPreview({
@@ -88,7 +88,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
       const mappingPayload = Object.entries(csvMapping).map(([csvColumn, entityField]) => ({ csvColumn, entityField }));
 
       try {
-        const res = await apiClient.post(`/csv/import/${config.app.id}/${entityConfig.name}`, {
+        const res = await apiClient.post(`/csv/import/${config.app?.id || 'default'}/${entityConfig?.name || 'default'}`, {
            sessionId: csvPreview.sessionId,
            columnMapping: mappingPayload
         });
@@ -106,8 +106,8 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
       }
   };
 
-  const appId = config.app.id;
-  const entity = entityConfig?.name;
+  const appId = config.app?.id || 'default';
+  const entity = entityConfig?.name || 'default';
   const isActiveTab = true;
   const {
     data: recordsResponse,
@@ -177,7 +177,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
       if (!deleteConfirmId) return;
       setIsDeleting(true);
       try {
-          await apiClient.delete(`/dynamic/${config.app.id}/${entityConfig.name}/${deleteConfirmId}`);
+          await apiClient.delete(`/dynamic/${config.app?.id || 'default'}/${entityConfig?.name || 'default'}/${deleteConfirmId}`);
           await refetch();
           setDeleteConfirmId(null);
           toast.success("Record deleted successfully");
