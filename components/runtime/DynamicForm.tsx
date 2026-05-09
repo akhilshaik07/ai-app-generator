@@ -175,8 +175,6 @@ export function DynamicForm({ view, page, config }: { view: ViewConfig; page?: P
                 }
 
                 const isFullWidth = field.type === "textarea" || field.type === "richtext" || field.type === "html" || field.type === "json";
-                const fieldName = field.name || `field_${Math.random().toString(36).substring(7)}`;
-                const fieldLabel = field.label || field.name || "Untitled Field";
                 
                 return (
                   <div key={fieldName} className={`space-y-2.5 ${isFullWidth ? "md:col-span-2" : ""}`}>
