@@ -350,7 +350,7 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
                              })}
                              <td className="px-4 py-2.5 text-right opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
                                  <Button variant="ghost" size="icon" className="mr-1 h-8 w-8 text-muted-foreground hover:text-foreground"><Edit2 className="w-4 h-4" /></Button>
-                                 <Button variant="ghost" size="icon" onClick={() => handleDelete(row?.id ?? row?._id ?? '')} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button>
+                                 <Button variant="ghost" size="icon" onClick={() => handleDelete(row?.id ?? row?._id ?? index)} className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"><Trash2 className="w-4 h-4" /></Button>
                              </td>
                          </tr>
                        );
@@ -469,8 +469,8 @@ export function DynamicTable({ view, config, locale, changeView }: { view: ViewC
                                </tr>
                            </thead>
                            <tbody>
-                               {csvPreview.rows.map((row, idx) => (
-                                   <tr key={idx} className="border-t">
+                               {(csvPreview.rows ?? []).filter(Boolean).map((row, idx) => (
+                                   <tr key={row?.id ?? row?._id ?? idx} className="border-t">
                                       {csvPreview.columns.map(c => <td key={c} className="p-2 whitespace-nowrap truncate max-w-[150px]">{row[c]}</td>)}
                                    </tr>
                                ))}
